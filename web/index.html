@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Teste de EQ de Voz</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --text: #1d2127; --muted: #616a76; --line: #dde1e6;
+    --accent: #1f6feb; --rec: #d1242f; --ok: #1a7f37; --warn-bg: #fff4d6; --warn: #7a5300;
+    --sobra: #e8803a; --falta: #3a86e8; --depois: #1d2127; --curva: #1f6feb; --grid: #e6e9ed;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111418; --card: #1a1f25; --text: #e6e9ed; --muted: #9aa4b1; --line: #2c333c;
+      --accent: #4c93ff; --rec: #ff5a5f; --ok: #3fb950; --warn-bg: #3a2f12; --warn: #f2cc60;
+      --sobra: #f0965a; --falta: #5a9cf0; --depois: #e6e9ed; --curva: #4c93ff; --grid: #262c34;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 18px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+            padding: 16px; margin-bottom: 14px; }
+  h2 { font-size: 16px; margin: 0 0 12px; }
+  h2 span { display: inline-block; width: 24px; height: 24px; border-radius: 50%; background: var(--accent);
+            color: #fff; text-align: center; line-height: 24px; font-size: 13px; margin-right: 6px; }
+  .linha { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end; }
+  label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+  select, input[type=number], input[type=text] {
+    font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px 8px; min-width: 0; }
+  select { max-width: 100%; }
+  button { font: inherit; border: 1px solid var(--line); background: var(--bg); color: var(--text);
+           border-radius: 6px; padding: 7px 14px; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primario { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.gravar { background: var(--rec); border-color: var(--rec); color: #fff; }
+  .medidor { flex: 1 1 220px; height: 14px; background: var(--bg); border: 1px solid var(--line);
+             border-radius: 7px; overflow: hidden; align-self: center; }
+  .medidor div { height: 100%; width: 0; background: var(--ok); transition: width .08s; }
+  .status { color: var(--muted); font-size: 13px; margin-top: 8px; min-height: 1.2em; }
+  .dica { color: var(--muted); font-size: 13px; margin: 10px 0 0; }
+  .avisos div { background: var(--warn-bg); color: var(--warn); border-radius: 6px; padding: 6px 10px;
+                margin: 8px 0; font-size: 13px; }
+  .info { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--muted); margin: 10px 0; }
+  .info b { color: var(--text); }
+  svg { width: 100%; height: auto; display: block; }
+  svg text { fill: var(--muted); font-size: 10px; }
+  .legenda { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); margin: 4px 0 8px; }
+  .legenda i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px;
+               vertical-align: -1px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 8px 0 14px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .corte { color: var(--falta); } .reforco { color: var(--sobra); }
+  .tabela { overflow-x: auto; }
+  input[type=range] { width: 160px; }
+  .radios { display: flex; gap: 12px; align-items: center; font-size: 14px; }
+  .radios label { flex-direction: row; align-items: center; color: var(--text); font-size: 14px; }
+  .msg { font-size: 13px; margin-top: 8px; min-height: 1.2em; }
+  .msg.erro { color: var(--rec); } .msg.ok { color: var(--ok); }
+  #resultado[hidden] { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Teste de EQ automático de voz</h1>
+  <p class="sub">Grave sua voz, veja o EQ sugerido e compare no fone o som original com o som equalizado.</p>
+
+  <section>
+    <h2><span>1</span>Gravar a voz</h2>
+    <div class="linha">
+      <label style="flex:1 1 260px">Microfone
+        <select id="entrada"></select></label>
+      <label>Canal
+        <input id="canalAudio" type="number" min="1" max="64" value="1" style="width:70px"></label>
+      <label>Segundos
+        <input id="segundos" type="number" min="5" max="60" value="15" style="width:80px"></label>
+      <button id="btnGravar" class="gravar">● Gravar</button>
+      <button id="btnParar" disabled>■ Parar</button>
+    </div>
+    <div class="linha" style="margin-top:12px">
+      <div class="medidor"><div id="nivel"></div></div>
+      <label style="flex-direction:row;align-items:center;gap:8px">ou abrir um WAV
+        <input id="arquivo" type="file" accept=".wav,audio/wav"></label>
+      <label style="flex-direction:row;align-items:center;gap:8px">canal do WAV
+        <input id="canalWav" type="number" min="1" max="64" value="1" style="width:60px"></label>
+    </div>
+    <div class="dica" id="dicaCanal"></div>
+    <div class="status" id="statusGravacao">Nenhuma gravação ainda.</div>
+    <p class="dica">Dica: fale ou cante como faria no evento, por uns 15 s, com o microfone do fone na posição de sempre.
+      Mantenha a barra no verde. Se ficar vermelha, o som estourou: fale mais baixo ou diminua o volume do microfone no Windows.</p>
+  </section>
+
+  <section>
+    <h2><span>2</span>Analisar</h2>
+    <div class="linha">
+      <label>Perfil
+        <select id="perfil"></select></label>
+      <label>Intensidade da correção: <b id="intensidadeValor"></b>
+        <input id="intensidade" type="range" min="0.5" max="1" step="0.05"></label>
+      <button id="btnAnalisar" class="primario" disabled>Analisar</button>
+    </div>
+    <div class="dica" id="descPerfil"></div>
+
+    <div id="resultado" hidden>
+      <div class="avisos" id="avisos"></div>
+      <div class="info" id="info"></div>
+
+      <h2 style="margin-top:16px">Sua voz comparada com o alvo</h2>
+      <div class="legenda">
+        <span><i style="background:var(--sobra)"></i>sobrando (antes)</span>
+        <span><i style="background:var(--falta)"></i>faltando (antes)</span>
+        <span><i style="background:var(--depois);border-radius:50%"></i>depois do EQ</span>
+      </div>
+      <svg id="grafDesvio" viewBox="0 0 720 240" role="img" aria-label="Diferença da voz em relação ao alvo por frequência"></svg>
+
+      <h2 style="margin-top:16px">EQ sugerido</h2>
+      <div class="tabela"><table>
+        <thead id="cabecalhoEq"></thead>
+        <tbody id="tabelaEq"></tbody>
+      </table></div>
+      <div class="legenda" id="legendaCurva">
+        <span><i style="background:var(--curva)"></i>EQ sugerido</span>
+        <span id="legendaAtual" hidden><i style="background:var(--muted)"></i>EQ atual da mesa (tracejado)</span>
+      </div>
+      <svg id="grafCurva" viewBox="0 0 720 180" role="img" aria-label="Curva do EQ sugerido"></svg>
+    </div>
+  </section>
+
+  <section>
+    <h2><span>3</span>Ouvir no fone</h2>
+    <div class="linha">
+      <label style="flex:1 1 260px">Saída (fone)
+        <select id="saida"></select></label>
+      <button id="btnOriginal" disabled>▶ Original</button>
+      <button id="btnComEq" disabled>▶ Com EQ</button>
+      <button id="btnPararAudio">■ Parar</button>
+    </div>
+    <p class="dica">As duas versões tocam no mesmo volume, para a comparação ser justa (o mais alto sempre parece melhor).</p>
+    <div class="linha" style="margin-top:8px">
+      <button id="btnSalvar" disabled>Salvar gravação (WAV)</button>
+    </div>
+    <div class="msg" id="msgOuvir"></div>
+  </section>
+
+  <section>
+    <h2><span>4</span>Mesa (opcional)</h2>
+    <div class="linha">
+      <div class="radios">
+        <label><input type="radio" name="destino" value="simulada" checked> Mesa simulada</label>
+        <label><input type="radio" name="destino" value="real"> Ui24R real</label>
+      </div>
+      <label>IP da mesa <input id="ip" type="text" style="width:140px"></label>
+      <label>Canal <input id="canal" type="number" min="1" max="24" style="width:70px"></label>
+      <button id="btnLerEq">Ler EQ atual</button>
+      <button id="btnAplicar" disabled>Aplicar EQ</button>
+      <button id="btnDesfazer">Desfazer</button>
+    </div>
+    <p class="dica" id="dicaPosEq" hidden>O config.yaml está com <b>pos_eq: true</b>: o áudio analisado já passa pelo EQ
+      do canal. Clique em "Ler EQ atual" antes de analisar, para o script descontar esse EQ (igual ao terminal).</p>
+    <p class="dica">Atenção: este teste analisa o microfone do fone, não o microfone da mesa.
+      Na mesa real, o EQ certo é o que vem da análise do microfone que está ligado nela.</p>
+    <div class="msg" id="msgMesa"></div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const memoria = {
+  ler(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  gravar(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+let temResultado = false, temAudio = false, timerEstado = null, ini = null;
+
+async function api(caminho, dados) {
+  const opcoes = dados === undefined ? {} : {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dados) };
+  const r = await fetch(caminho, opcoes);
+  const json = await r.json();
+  if (!r.ok) throw new Error(json.erro || "erro");
+  return json;
+}
+
+function mensagem(el, texto, tipo) { el.textContent = texto; el.className = "msg " + (tipo || ""); }
+
+function preencher(select, lista, padrao, chave) {
+  select.innerHTML = "";
+  for (const d of lista) {
+    const o = document.createElement("option");
+    o.value = d.indice;
+    o.textContent = `${d.nome}  (${d.api}, ${Math.round(d.taxa / 1000)} kHz)`;
+    select.appendChild(o);
+  }
+  const salvo = memoria.ler(chave);
+  select.value = lista.some(d => String(d.indice) === salvo) ? salvo : padrao;
+  select.addEventListener("change", () => memoria.gravar(chave, select.value));
+}
+
+// Com a Ui24R pelo USB, a entrada N da mesa chega no canal USB N + offset_usb (igual ao terminal).
+function sugerirCanal() {
+  const nome = $("entrada").selectedOptions[0]?.textContent || "";
+  const ehMesa = ini.dispositivo_mesa && nome.toLowerCase().includes(ini.dispositivo_mesa.toLowerCase());
+  const canalMesa = parseInt($("canal").value) || 1;
+  $("canalAudio").value = ehMesa ? canalMesa + ini.offset_usb : 1;
+  $("dicaCanal").textContent = ehMesa
+    ? `Mesa pelo USB: entrada ${canalMesa} da mesa = canal USB ${canalMesa + ini.offset_usb} (o canal da mesa fica na parte 4).`
+    : "";
+}
+
+async function iniciar() {
+  ini = await api("/api/inicio");
+  preencher($("entrada"), ini.entradas, ini.entrada_padrao, "entrada");
+  preencher($("saida"), ini.saidas, ini.saida_padrao, "saida");
+  for (const [nome, desc] of Object.entries(ini.perfis)) {
+    const o = document.createElement("option"); o.value = nome; o.textContent = nome; o.dataset.desc = desc;
+    $("perfil").appendChild(o);
+  }
+  $("perfil").value = ini.perfil;
+  $("intensidade").value = ini.intensidade;
+  $("ip").value = ini.ip; $("canal").value = ini.canal;
+  $("dicaPosEq").hidden = !ini.pos_eq;
+  sugerirCanal();
+  atualizarControles();
+  await atualizarEstado();
+}
+
+function atualizarControles() {
+  $("intensidadeValor").textContent = Math.round($("intensidade").value * 100) + "%";
+  $("descPerfil").textContent = $("perfil").selectedOptions[0]?.dataset.desc || "";
+  $("btnAnalisar").disabled = !temAudio;
+  $("btnOriginal").disabled = !temAudio;
+  $("btnSalvar").disabled = !temAudio;
+  $("btnComEq").disabled = !temResultado;
+  $("btnAplicar").disabled = !temResultado;
+}
+
+async function atualizarEstado() {
+  const e = await api("/api/estado");
+  const pct = Math.max(0, Math.min(100, (e.nivel_db + 60) / 60 * 100));
+  $("nivel").style.width = (e.gravando ? pct : 0) + "%";
+  $("nivel").style.background = e.nivel_db > -1 ? "var(--rec)" : e.nivel_db > -6 ? "#d4a72c" : "var(--ok)";
+  $("btnGravar").disabled = e.gravando;
+  $("btnParar").disabled = !e.gravando;
+  if (e.gravando) {
+    $("statusGravacao").textContent = `Gravando... faltam ${Math.ceil(e.restante)} s` + (e.clipou ? "  (ESTOUROU! fale mais baixo)" : "");
+  } else if (e.tem_audio) {
+    $("statusGravacao").textContent = `Pronto: ${e.duracao} s de ${e.origem}.` + (e.clipou ? " Atenção: houve estouro." : "");
+  }
+  const tinhaAudio = temAudio;
+  temAudio = e.tem_audio;
+  if (e.gravando) {
+    timerEstado = setTimeout(atualizarEstado, 100);
+  } else if (timerEstado !== null) {
+    timerEstado = null;
+    if (temAudio) analisar();   // gravação acabou: já analisa
+  }
+  if (tinhaAudio !== temAudio) atualizarControles();
+  return e;
+}
+
+async function gravar() {
+  temResultado = false; $("resultado").hidden = true; atualizarControles();
+  try {
+    await api("/api/gravar", { entrada: $("entrada").value, segundos: $("segundos").value, canal: $("canalAudio").value });
+    timerEstado = setTimeout(atualizarEstado, 100);
+  } catch (err) { $("statusGravacao").textContent = "Erro: " + err.message; }
+}
+
+async function analisar() {
+  if (!temAudio) return;
+  $("btnAnalisar").disabled = true;
+  try {
+    const r = await api("/api/analisar", { perfil: $("perfil").value, intensidade: $("intensidade").value,
+      canal_mesa: $("canal").value });
+    mostrarResultado(r);
+    temResultado = true;
+  } catch (err) {
+    temResultado = false; $("resultado").hidden = false;
+    $("avisos").innerHTML = ""; $("info").textContent = "";
+    $("avisos").append(Object.assign(document.createElement("div"), { textContent: err.message }));
+  }
+  atualizarControles();
+}
+
+const fmtFreq = f => f >= 1000 ? (f / 1000).toLocaleString("pt-BR", { maximumSignificantDigits: 3 }) + " kHz" : Math.round(f) + " Hz";
+const fmtDb = g => (g > 0 ? "+" : "") + g.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " dB";
+
+function mostrarResultado(r) {
+  $("resultado").hidden = false;
+  $("avisos").innerHTML = "";
+  for (const a of r.avisos) $("avisos").append(Object.assign(document.createElement("div"), { textContent: a }));
+  $("info").innerHTML = `<span>Voz analisada: <b>${r.segundos_voz} s</b></span>` +
+    (r.f0 ? `<span>Tom médio da voz: <b>${r.f0} Hz</b></span>` : "") +
+    `<span>Qualidade da gravação: <b>${Math.round(r.taxa / 1000)} kHz</b></span>`;
+  graficoDesvio(r.bandas);
+  tabelaEq(r);
+  graficoCurva(r.curva, r.bandas_eq, r.hpf, r.antes);
+}
+
+function tabelaEq(r) {
+  const a = r.antes;
+  $("cabecalhoEq").innerHTML = `<tr><th></th><th>Frequência</th><th>Ganho</th><th>Q</th><th>O que faz</th>` +
+    (a ? `<th>Atual na mesa</th>` : "") + `</tr>`;
+  const atual = texto => a ? `<td class="num">${texto}</td>` : "";
+  const linhas = [`<tr><td>HPF</td><td class="num">${fmtFreq(r.hpf)}</td><td class="num">—</td><td class="num">—</td>
+    <td>corta-graves: tira ronco, vento e batidas abaixo dessa frequência</td>${atual(a && a.hpf ? fmtFreq(a.hpf) : "—")}</tr>`];
+  for (let k = 0; k < 4; k++) {
+    const b = r.bandas_eq[k], ba = a && a.bandas_eq[k];
+    const textoAtual = ba ? `${fmtFreq(ba.freq)} ${fmtDb(ba.ganho)} Q ${ba.q.toLocaleString("pt-BR")}` : "—";
+    linhas.push((b
+      ? `<tr><td>Banda ${k + 1}</td><td class="num">${fmtFreq(b.freq)}</td>
+         <td class="num ${b.ganho < 0 ? "corte" : "reforco"}">${fmtDb(b.ganho)}</td>
+         <td class="num">${b.q.toLocaleString("pt-BR")}</td><td>${b.rotulo}</td>`
+      : `<tr><td>Banda ${k + 1}</td><td class="num">—</td><td class="num">0 dB</td><td class="num">—</td><td>não usada</td>`)
+      + atual(textoAtual) + `</tr>`);
+  }
+  $("tabelaEq").innerHTML = linhas.join("");
+}
+
+const NS = "http://www.w3.org/2000/svg";
+function el(nome, attrs, texto) {
+  const e = document.createElementNS(NS, nome);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (texto !== undefined) e.textContent = texto;
+  return e;
+}
+
+function eixoDb(svg, x0, x1, y, passos) {
+  for (const db of passos) {
+    svg.append(el("line", { x1: x0, x2: x1, y1: y(db), y2: y(db), stroke: db === 0 ? "var(--muted)" : "var(--grid)",
+      "stroke-width": db === 0 ? 1 : 1 }));
+    svg.append(el("text", { x: x0 - 6, y: y(db) + 3, "text-anchor": "end" }, (db > 0 ? "+" : "") + db));
+  }
+}
+
+function graficoDesvio(bandas) {
+  const svg = $("grafDesvio"); svg.innerHTML = "";
+  const validas = bandas.filter(b => b.valido);
+  const x0 = 40, x1 = 712, topo = 10, base = 205, lim = 12;
+  const y = db => topo + (lim - Math.max(-lim, Math.min(lim, db))) / (2 * lim) * (base - topo);
+  eixoDb(svg, x0, x1, y, [-12, -6, 0, 6, 12]);
+  svg.append(el("text", { x: x0 + 4, y: topo + 10 }, "sobrando"));
+  svg.append(el("text", { x: x0 + 4, y: base - 4 }, "faltando"));
+  const passo = (x1 - x0) / validas.length, larg = Math.max(4, passo * 0.55);
+  validas.forEach((b, i) => {
+    const cx = x0 + passo * (i + 0.5);
+    const ya = y(b.antes), y0 = y(0);
+    const barra = el("rect", { x: cx - larg / 2, y: Math.min(ya, y0), width: larg, height: Math.max(1, Math.abs(ya - y0)),
+      rx: 2, fill: b.antes >= 0 ? "var(--sobra)" : "var(--falta)", opacity: 0.85 });
+    barra.append(el("title", {}, `${fmtFreq(b.nominal)}: antes ${fmtDb(b.antes)}, depois ${fmtDb(b.depois)}`));
+    svg.append(barra);
+    svg.append(el("circle", { cx, cy: y(b.depois), r: 3.5, fill: "var(--depois)" }));
+    svg.append(el("text", { x: cx, y: base + 16, "text-anchor": "middle" },
+      b.nominal >= 1000 ? (b.nominal / 1000).toLocaleString("pt-BR") + "k" : b.nominal));
+  });
+  svg.append(el("text", { x: x1, y: base + 30, "text-anchor": "end" }, "Hz"));
+}
+
+function graficoCurva(curva, bandasEq, hpf, antes) {
+  const svg = $("grafCurva"); svg.innerHTML = "";
+  const x0 = 40, x1 = 712, topo = 10, base = 150, lim = 12;
+  const lx = f => x0 + Math.log10(f / 20) / Math.log10(1000) * (x1 - x0);
+  const y = db => topo + (lim - Math.max(-lim, Math.min(lim, db))) / (2 * lim) * (base - topo);
+  eixoDb(svg, x0, x1, y, [-12, -6, 0, 6, 12]);
+  for (const f of [50, 100, 200, 500, 1000, 2000, 5000, 10000]) {
+    svg.append(el("line", { x1: lx(f), x2: lx(f), y1: topo, y2: base, stroke: "var(--grid)" }));
+    svg.append(el("text", { x: lx(f), y: base + 15, "text-anchor": "middle" }, f >= 1000 ? f / 1000 + "k" : f));
+  }
+  const caminho = pts => pts.map(([f, g], i) => `${i ? "L" : "M"}${lx(f).toFixed(1)},${y(g).toFixed(1)}`).join("");
+  $("legendaAtual").hidden = !antes;
+  if (antes) {
+    svg.append(el("path", { d: caminho(antes.curva), fill: "none", stroke: "var(--muted)", "stroke-width": 1.8,
+      "stroke-dasharray": "5 4" }));
+  }
+  svg.append(el("path", { d: caminho(curva), fill: "none", stroke: "var(--curva)", "stroke-width": 2.5, "stroke-linejoin": "round" }));
+  bandasEq.forEach((b, i) => {
+    svg.append(el("circle", { cx: lx(b.freq), cy: y(b.ganho), r: 4, fill: "var(--curva)" }));
+    svg.append(el("text", { x: lx(b.freq), y: y(b.ganho) + (b.ganho < 0 ? 16 : -8), "text-anchor": "middle",
+      style: "fill:var(--text);font-weight:600" }, String(i + 1)));
+  });
+  svg.append(el("text", { x: lx(hpf), y: base - 6, "text-anchor": "middle", style: "fill:var(--text)" }, "HPF"));
+}
+
+async function ouvir(versao) {
+  try { await api("/api/ouvir", { saida: $("saida").value, versao }); mensagem($("msgOuvir"), "Tocando " + (versao === "eq" ? "com EQ..." : "original...")); }
+  catch (err) { mensagem($("msgOuvir"), "Erro: " + err.message, "erro"); }
+}
+
+function destino() { return document.querySelector("input[name=destino]:checked").value; }
+
+async function mesa(acao) {
+  const d = destino(), canal = $("canal").value;
+  if (acao === "aplicar" && d === "real" &&
+      !confirm(`Aplicar este EQ no canal ${canal} da Ui24R real?\n\nLembre: ele foi calculado com o microfone do fone, não com o da mesa. Dá para voltar com "Desfazer".`)) return;
+  mensagem($("msgMesa"), d === "real" ? "Conectando na mesa..." : "Comunicando com a mesa simulada...");
+  try {
+    const r = await api("/api/" + acao, { destino: d, ip: $("ip").value, canal });
+    mensagem($("msgMesa"), r.mensagem, "ok");
+    if (temResultado) analisar();   // atualiza a coluna "Atual na mesa" (e o desconto do pos_eq)
+  } catch (err) { mensagem($("msgMesa"), "Erro: " + err.message, "erro"); }
+}
+
+$("btnGravar").onclick = gravar;
+$("btnParar").onclick = () => api("/api/parar_gravacao", {});
+$("btnAnalisar").onclick = analisar;
+$("perfil").onchange = () => { atualizarControles(); if (temResultado) analisar(); };
+$("intensidade").oninput = atualizarControles;
+$("intensidade").onchange = () => { if (temResultado) analisar(); };
+$("btnOriginal").onclick = () => ouvir("original");
+$("btnComEq").onclick = () => ouvir("eq");
+$("btnPararAudio").onclick = () => { api("/api/parar_audio", {}); mensagem($("msgOuvir"), ""); };
+$("btnSalvar").onclick = async () => {
+  try { mensagem($("msgOuvir"), (await api("/api/salvar", {})).mensagem, "ok"); }
+  catch (err) { mensagem($("msgOuvir"), "Erro: " + err.message, "erro"); }
+};
+$("btnLerEq").onclick = () => mesa("ler_eq");
+$("entrada").addEventListener("change", sugerirCanal);
+$("canal").onchange = () => { sugerirCanal(); if (temResultado) analisar(); };
+$("btnAplicar").onclick = () => mesa("aplicar");
+$("btnDesfazer").onclick = () => mesa("desfazer");
+$("arquivo").onchange = async ev => {
+  const f = ev.target.files[0]; if (!f) return;
+  temResultado = false; $("resultado").hidden = true;
+  try {
+    const r = await fetch("/api/carregar_wav", { method: "POST", body: await f.arrayBuffer(),
+      headers: { "X-Nome-Arquivo": encodeURIComponent(f.name), "X-Canal": $("canalWav").value } });
+    const j = await r.json(); if (!r.ok) throw new Error(j.erro);
+    await atualizarEstado(); atualizarControles(); analisar();
+  } catch (err) { $("statusGravacao").textContent = "Erro ao abrir o WAV: " + err.message; }
+};
+
+iniciar().catch(err => { document.querySelector(".sub").textContent = "Erro ao iniciar: " + err.message; });
+</script>
+</body>
+</html>

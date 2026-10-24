@@ -1,0 +1,19 @@
+# Configuração do EQ automático de voz (Soundcraft Ui24R)
+# Tudo aqui pode ser sobrescrito na linha de comando (veja: python autoeq.py calibrar --help)
+
+ip_mesa: 192.168.3.103        # IP da mesa (10.10.1.1 é o padrão quando se conecta no Wi-Fi da própria mesa)
+canal_mesa: 1             # número da entrada da mesa onde está o microfone (o que chega pela medusa)
+perfil: canto              # fala (pregação/palestra) | canto
+fonte: usb                # usb | rede | arquivo  (de onde vem o som que será analisado)
+segundos: 15              # tempo de gravação para análise
+intensidade: 0.8          # 0.5 = correção suave ... 1.0 = correção total
+
+audio:
+  dispositivo: "Ui24R"    # parte do nome ou número do dispositivo (veja: python autoeq.py dispositivos)
+  offset_usb: 10          # canais USB 1-10 são masters/aux; entrada 1 da mesa = canal USB 11
+  taxa: 48000
+  pos_eq: false           # true se o áudio analisado já passa pelo EQ do canal (o script desconta o EQ atual)
+
+limites:
+  ganho_min_db: -8        # maior corte permitido por banda
+  ganho_max_db: 4         # maior reforço permitido por banda
