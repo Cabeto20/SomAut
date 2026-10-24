@@ -38,7 +38,13 @@ Microfone ──> medusa ──> entrada N da Ui24R ──USB (som)──> PC �
 
 ## Instalação (uma vez)
 
-No PowerShell, dentro desta pasta:
+Precisa do **Python 3.11 ou mais novo** ([python.org](https://www.python.org); na instalação, marque
+"Add python.exe to PATH").
+
+**Jeito fácil:** dê dois cliques em **`Abrir interface de teste.bat`**. Na primeira vez, ou se a pasta
+foi copiada para outro lugar ou outro PC, ele prepara o ambiente sozinho (leva alguns minutos).
+
+**Jeito manual**, no PowerShell, dentro desta pasta:
 
 ```powershell
 python -m venv .venv
@@ -47,7 +53,8 @@ python -m venv .venv
 
 Para usar a mesa pelo USB, instale também o driver **Soundcraft Multi-USB** (site da Soundcraft/Harman).
 
-Nos exemplos abaixo, `py` = `.\.venv\Scripts\python.exe`.
+Nos exemplos abaixo, `py` = `.\.venv\Scripts\python.exe`. Use sempre esse Python, e não o
+`python` comum: as bibliotecas ficam instaladas só no ambiente `.venv` do projeto.
 
 ## Configuração
 
@@ -156,6 +163,7 @@ Veja todas com `py autoeq.py calibrar --help`.
 
 | Sintoma | O que fazer |
 |---|---|
+| `No module named 'numpy'` ou "Falta a biblioteca…" | Rodou com o Python errado. Abra pelo `.bat` ou use `.venv\Scripts\python.exe interface.py`. No VS Code, escolha o interpretador `.venv` (Ctrl+Shift+P > "Python: Select Interpreter"). |
 | Erro ao gravar com um microfone | Escolha outro na lista (ex.: a webcam pode estar desconectada ou em uso). |
 | "tem 2 entradas, mas foi pedido o canal 11" | O canal é maior que o dispositivo. Com fone use canal 1; com a Ui24R confira `canal_mesa` e `offset_usb`. |
 | "Sinal fraco" / "Clipping" | Ajuste o GAIN na mesa (ou o volume do microfone no Windows) e grave de novo. |

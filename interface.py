@@ -18,9 +18,18 @@ from urllib.parse import unquote
 
 os.environ.setdefault("SD_ENABLE_ASIO", "1")
 
-import numpy as np
-import sounddevice as sd
-from scipy import signal
+try:
+    import numpy as np
+    import sounddevice as sd
+    import websocket  # noqa: F401  (usado pela conexão com a mesa)
+    import yaml  # noqa: F401
+    from scipy import signal
+except ModuleNotFoundError as erro:
+    raise SystemExit(
+        f"Falta a biblioteca '{erro.name}': este Python não é o do projeto.\n"
+        "Abra pelo 'Abrir interface de teste.bat' (ele prepara tudo sozinho) ou rode:\n"
+        "  .venv\\Scripts\\python.exe interface.py"
+    ) from None
 
 from analise import pipeline, solver_eq
 from analise.espectro import NOMINAIS
